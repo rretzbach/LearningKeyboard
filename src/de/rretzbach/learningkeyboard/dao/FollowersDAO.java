@@ -95,7 +95,7 @@ public class FollowersDAO {
 		List<ProbableWord> res = null;
 		Cursor query = db.rawQuery(
 				"select fw.word, f.frequency from words lw inner join followers f on lw._id = f.lastword inner join words fw on f.follower = fw._id where lw.word = ?",
-				new String[] { lastWord });
+				new String[] { lastWord == null ? "" : lastWord });
 		if (query.getCount() > 0) {
 			res = new ArrayList<ProbableWord>();
 			while (query.moveToNext()) {

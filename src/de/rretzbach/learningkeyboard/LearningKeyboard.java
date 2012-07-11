@@ -57,7 +57,6 @@ import de.rretzbach.learningkeyboard.dao.MySQLiteHelper;
  * example for how you would get started writing an input method, to be fleshed
  * out as appropriate.
  */
-// TODO Minus removes the last uncommited word
 public class LearningKeyboard extends InputMethodService implements
 		KeyboardView.OnKeyboardActionListener {
 	static final boolean DEBUG = false;
@@ -587,7 +586,18 @@ public class LearningKeyboard extends InputMethodService implements
 			if (mComposing.length() > 0) {
 				commitTyped(getCurrentInputConnection());
 			}
+			
+			if (".,".contains(String.valueOf((char) primaryCode))) {
+				removeTrailingSpaces(getCurrentInputConnection());
+				removeTrailingWordSeparator(getCurrentInputConnection());
+			}
+			
 			sendKey(primaryCode);
+			
+			if (".,".contains(String.valueOf((char) primaryCode))) {
+				sendKey(' ');
+			}
+			
 			updateShiftKeyState(getCurrentInputEditorInfo());
 		} else if (primaryCode == Keyboard.KEYCODE_DELETE) {
 			handleBackspace();
@@ -614,6 +624,29 @@ public class LearningKeyboard extends InputMethodService implements
 		} else {
 			handleCharacter(primaryCode, keyCodes);
 		}
+	}
+
+	private int removeTrailingWordSeparator(
+			InputConnection currentInputConnection) {
+		String textBeforeCursor = String.valueOf(currentInputConnection.getTextBeforeCursor(5, 0));
+		Matcher matcher = Pattern.compile("[,.]*$").matcher(textBeforeCursor);
+		if (matcher.find()) {
+			int foundSpaces = matcher.group().length();
+			currentInputConnection.deleteSurroundingText(foundSpaces, 0);
+			return foundSpaces;
+		}
+		return 0;
+	}
+
+	private int removeTrailingSpaces(InputConnection currentInputConnection) {
+		String textBeforeCursor = String.valueOf(currentInputConnection.getTextBeforeCursor(5, 0));
+		Matcher matcher = Pattern.compile(" *$").matcher(textBeforeCursor);
+		if (matcher.find()) {
+			int foundSpaces = matcher.group().length();
+			currentInputConnection.deleteSurroundingText(foundSpaces, 0);
+			return foundSpaces;
+		}
+		return 0;
 	}
 
 	public void onText(CharSequence text) {
@@ -647,10 +680,8 @@ public class LearningKeyboard extends InputMethodService implements
 						.getTextBeforeCursor(30, 0));
 				if (last30Chars != null) {
 					String lastWord = extractLastWord(last30Chars);
-					if (lastWord != null) {
-						list.addAll(suggestionService.suggestNextWords(
-								lastWord, mComposing.toString()));
-					}
+					list.addAll(suggestionService.suggestNextWords(
+							lastWord, mComposing.toString()));
 				}
 
 				setSuggestions(list, true, true);
@@ -733,6 +764,7 @@ public class LearningKeyboard extends InputMethodService implements
 		} else {
 			InputConnection inputConnection = getCurrentInputConnection();
 			if (inputConnection != null) {
+				commitTyped(inputConnection);
 				inputConnection.commitText(
 					String.valueOf((char) primaryCode), 1);
 			}
